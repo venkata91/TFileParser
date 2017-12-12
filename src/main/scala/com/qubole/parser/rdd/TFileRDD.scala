@@ -17,18 +17,13 @@
   */
 package com.qubole.rdd
 
-import com.qubole.parser.TFileInputFormat
+import com.qubole.parser.{SerializableConfiguration, TFileInputFormat}
 import org.apache.hadoop.conf.{Configurable, Configuration}
 import org.apache.hadoop.io.{Text, Writable}
-import org.apache.hadoop.mapred.JobConf
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.{InputSplit, Job, JobContext}
+import org.apache.hadoop.mapreduce.InputSplit
 import org.apache.hadoop.mapreduce.task.JobContextImpl
-import org.apache.hadoop.mapreduce.{Job => NewHadoopJob}
-import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => NewFileInputFormat}
-import org.apache.spark.input.WholeTextFileInputFormat
 import org.apache.spark.{Partition, SerializableWritable, SparkContext}
-import org.apache.spark.rdd.{NewHadoopPartition, NewHadoopRDD, RDD, WholeTextFileRDD}
+import org.apache.spark.rdd.{ NewHadoopRDD, RDD }
 
 class TFileRDD(
                 sc: SparkContext,
@@ -39,14 +34,14 @@ class TFileRDD(
                 minPartitions: Int) extends NewHadoopRDD[Text, Text](sc, inputFormatClass, keyClass, valueClass, conf) {
   override def getPartitions: Array[Partition] = {
     val inputFormat = inputFormatClass.newInstance
-    val conf = getConf
+    val serializableConf = new SerializableConfiguration(getConf)
     inputFormat match {
       case configurable: Configurable =>
-        configurable.setConf(conf)
+        configurable.setConf(serializableConf.value)
       case _ =>
     }
 
-    val jobContext = new JobContextImpl(conf, jobId)
+    val jobContext = new JobContextImpl(serializableConf.value, jobId)
     val rawSplits = inputFormat.getSplits(jobContext)
     val result = new Array[Partition](rawSplits.size)
     for (i <- 0 until rawSplits.size) {
