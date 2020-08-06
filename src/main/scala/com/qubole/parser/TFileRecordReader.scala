@@ -70,7 +70,7 @@ class TFileRecordReader extends RecordReader[Text, Text] {
 
   @throws[IOException]
   private def populateKV(entry: TFile.Reader.Scanner#Entry) {
-    LOG.info("Populating key values of the TFile")
+    LOG.debug("Populating key values of the TFile")
     entry.getKey(keyBytesWritable)
     //splitpath contains the machine name. Create the key as splitPath + realKey
     val keyStr: String = new StringBuilder().append(splitPath.getName).append(":").append(new String(keyBytesWritable.getBytes)).toString
@@ -106,7 +106,7 @@ class TFileRecordReader extends RecordReader[Text, Text] {
       populateKV(scanner.entry)
       true
     } catch {
-      case eofException: EOFException => {
+      case _: EOFException => {
         key = null
         value = null
         false

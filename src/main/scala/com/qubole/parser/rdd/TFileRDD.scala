@@ -17,58 +17,15 @@
   */
 package com.qubole.rdd
 
-import com.qubole.parser.{SerializableConfiguration, TFileInputFormat}
-import org.apache.hadoop.conf.{Configurable, Configuration}
-import org.apache.hadoop.io.{Text, Writable}
-import org.apache.hadoop.mapreduce.InputSplit
-import org.apache.hadoop.mapreduce.task.JobContextImpl
-import org.apache.spark.{Partition, SerializableWritable, SparkContext}
-import org.apache.spark.rdd.{ NewHadoopRDD, RDD }
-
-class TFileRDD(
-                sc: SparkContext,
-                inputFormatClass: Class[TFileInputFormat],
-                keyClass: Class[Text],
-                valueClass: Class[Text],
-                conf: Configuration,
-                minPartitions: Int) extends NewHadoopRDD[Text, Text](sc, inputFormatClass, keyClass, valueClass, conf) {
-  override def getPartitions: Array[Partition] = {
-    val inputFormat = inputFormatClass.newInstance
-    val serializableConf = new SerializableConfiguration(getConf)
-    inputFormat match {
-      case configurable: Configurable =>
-        configurable.setConf(serializableConf.value)
-      case _ =>
-    }
-
-    val jobContext = new JobContextImpl(serializableConf.value, jobId)
-    val rawSplits = inputFormat.getSplits(jobContext)
-    val result = new Array[Partition](rawSplits.size)
-    for (i <- 0 until rawSplits.size) {
-      result(i) = new TFilePartition(id, i, rawSplits.get(i).asInstanceOf[InputSplit with Writable])
-    }
-    result
-  }
-
-  class TFilePartition(
-                        rddId: Int,
-                        val index: Int,
-                        rawSplit: InputSplit with Writable)
-    extends Partition {
-
-    val serializableHadoopSplit = new SerializableWritable(rawSplit)
-
-    override def hashCode(): Int = 31 * (31 + rddId) + index
-
-    override def equals(other: Any): Boolean = super.equals(other)
-  }
-}
+import com.qubole.parser.TFileInputFormat
+import org.apache.hadoop.io.Text
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 object TFileRDD {
   def apply(
              sc: SparkContext,
-             path: String,
-             minPartitions: Int = 2): RDD[(Text, Text)] = {
+             path: String): RDD[(Text, Text)] = {
     sc.newAPIHadoopFile(path, classOf[TFileInputFormat], classOf[Text], classOf[Text])
   }
 }
